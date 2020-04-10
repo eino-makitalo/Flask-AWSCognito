@@ -1,6 +1,6 @@
 from functools import wraps
 
-from flask import _app_ctx_stack, abort, request, make_response, jsonify, g
+from flask import _app_ctx_stack, abort, request, make_response, jsonify, g, session
 from flask_awscognito.utils import extract_access_token, get_state
 from flask_awscognito.services import cognito_service_factory, token_service_factory
 from flask_awscognito.exceptions import FlaskAWSCognitoError, TokenVerifyError
@@ -92,6 +92,9 @@ class AWSCognitoAuthentication:
         def decorated(*args, **kwargs):
 
             access_token = extract_access_token(request.headers)
+            if not access_token:
+                if 'access_token' in session:
+                    access_token=session['access_token']            
             try:
                 self.token_service.verify(access_token)
                 self.claims = self.token_service.claims
@@ -100,6 +103,25 @@ class AWSCognitoAuthentication:
                 _ = request.data
                 abort(make_response(jsonify(message=str(e)), 401))
 
+            return view(*args, **kwargs)
+
+        return decorated
+
+    def enrich_claims(self, view):
+        @wraps(view)
+        def decorated(*args, **kwargs):
+
+            access_token = extract_access_token(request.headers)
+            if not access_token:
+                if 'access_token' in session:
+                    access_token=session['access_token']
+            try:
+                self.token_service.verify(access_token)
+                self.claims = self.token_service.claims
+                g.cognito_claims = self.claims
+            except TokenVerifyError as e:
+                g.cognito_claims = None
+                
             return view(*args, **kwargs)
 
         return decorated
