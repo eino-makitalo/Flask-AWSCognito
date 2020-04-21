@@ -71,18 +71,21 @@ class AWSCognitoAuthentication:
                 setattr(ctx, CONTEXT_KEY_COGNITO_SERVICE, cognito_service)
             return getattr(ctx, CONTEXT_KEY_COGNITO_SERVICE)
 
-    def get_sign_in_url(self):
-        sign_in_url = self.cognito_service.get_sign_in_url()
+    def get_sign_in_url(self,style='login'):
+        sign_in_url = self.cognito_service.get_sign_in_url(style=style)
         return sign_in_url
 
-    def get_access_token(self, request_args):
+    def get_logout_url(self):
+        sign_in_url = self.cognito_service.get_logout_url()
+        return sign_in_url
+
+    def get_tokens(self, request_args):
         code = request_args.get("code")
         state = request_args.get("state")
         expected_state = get_state(self.user_pool_id, self.user_pool_client_id)
         if state != expected_state:
             raise FlaskAWSCognitoError("State for CSRF is not correct ")
-        access_token = self.cognito_service.exchange_code_for_token(code)
-        return access_token
+        return self.cognito_service.exchange_code_for_token(code)
 
     def get_user_info(self, access_token):
         return self.cognito_service.get_user_info(access_token)
@@ -121,6 +124,7 @@ class AWSCognitoAuthentication:
                 g.cognito_claims = self.claims
             except TokenVerifyError as e:
                 g.cognito_claims = None
+                self.claims = None
                 
             return view(*args, **kwargs)
 

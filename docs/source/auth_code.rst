@@ -41,7 +41,7 @@ Endpoint's example code:
 
     @app.route('/aws_cognito_redirect')
     def aws_cognito_redirect():
-        access_token = aws_auth.get_access_token(request.args)
+        access_token = aws_auth.get_tokens(request.args)
         return jsonify({'access_token': access_token})
 
 

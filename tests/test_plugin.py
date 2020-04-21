@@ -3,7 +3,7 @@ from flask_awscognito import AWSCognitoAuthentication
 
 
 @pytest.mark.usefixtures("set_env")
-def test_get_access_token(
+def test_get_tokens(
     app, cognito_service_test_factory, token_service_test_factory
 ):
     plugin = AWSCognitoAuthentication(
@@ -15,7 +15,7 @@ def test_get_access_token(
         assert plugin.token_service
         assert plugin.cognito_service
         req_args = {"code": "code", "state": "dc0de448b88af41d1cd06387ac2d5102"}
-        plugin.get_access_token(req_args)
+        plugin.get_tokens(req_args)
         plugin.cognito_service.exchange_code_for_token.assert_called_with("code")
 
 @pytest.mark.usefixtures("set_env")
