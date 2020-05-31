@@ -20,10 +20,12 @@ class AWSCognitoAuthentication:
     def __init__(
         self,
         app=None,
+        renewfunc=None,        
         _token_service_factory=token_service_factory,
         _cognito_service_factory=cognito_service_factory,
     ):
         self.app = app
+        self.renewfunc =renewfunc
         self.user_pool_id = None
         self.user_pool_client_id = None
         self.user_pool_client_secret = None
@@ -113,18 +115,29 @@ class AWSCognitoAuthentication:
     def enrich_claims(self, view):
         @wraps(view)
         def decorated(*args, **kwargs):
+            def enrich_it():
+                self.token_service.verify(access_token)
+                self.claims = self.token_service.claims
+                g.cognito_claims = self.claims                
 
             access_token = extract_access_token(request.headers)
             if not access_token:
                 if 'access_token' in session:
                     access_token=session['access_token']
             try:
-                self.token_service.verify(access_token)
-                self.claims = self.token_service.claims
-                g.cognito_claims = self.claims
+                enrich_it()
             except TokenVerifyError as e:
-                g.cognito_claims = None
-                self.claims = None
+                try:
+                    if 'refresh_token' in session:
+                        self.renewfunc()
+                        access_token=session['access_token']
+                    else:
+                        raise e
+                    enrich_it()
+                except TokenVerifyError:
+                    self.claims=None
+                    g.cognito_claims=None
+                
                 
             return view(*args, **kwargs)
 
